@@ -23,8 +23,8 @@
         ((assignment? exp) (eval-assignment exp env))
         ((definition? exp) (eval-definition exp env))
         ((if? exp) (eval-if exp env))
-        ((and? exp) (eval-and exp env))
-        ((or? exp) (eval-or exp env))
+        ((and? exp) (eval (and->if exp) env))
+        ((or? exp) (eval (or->if exp) env))
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
@@ -57,24 +57,28 @@
 
 (define (and? exp)
   (tagged-list? exp 'and))
-(define (eval-and exp env)
-  (define (eval-and-operands operands)
-    (cond ((null? operands) false)
-          ((true? (eval (car operands) env))
-           (eval-and-operands (cdr operands)))
-          (else false)))
-  (eval-and-operands (cdr exp)))
+(define (and-clauses exp) (cdr exp))
+(define (expand-and-clauses clauses)
+  (if (null? clauses)
+      'true
+      (make-if (car clauses)
+               (expand-and-clauses (cdr clauses))
+               'false)))
+(define (and->if exp)
+  (expand-and-clauses (and-clauses exp)))
 
 (define (or? exp)
   (tagged-list? exp 'or))
-(define (eval-or exp env)
-  (define (eval-or-operands operands)
-    (cond ((null? operands) false)
-          ((true? (eval (car operands) env))
-           true)
-          (else
-           (eval-or-operands (cdr operands)))))
-  (eval-or-operands (cdr exp)))
+(define (or-clauses exp) (cdr exp))
+(define (expand-or-clauses clauses)
+  (if (null? clauses)
+      'false
+      (make-if (car clauses)
+               'true
+               (expand-or-clauses (cdr clauses)))))
+
+(define (or->if exp)
+  (expand-or-clauses (or-clauses exp)))
 
 ; list of arguments to which procedure is applied
 (define (list-of-values exps env)
