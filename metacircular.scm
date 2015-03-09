@@ -26,6 +26,7 @@
         ((and? exp) (eval (and->if exp) env))
         ((or? exp) (eval (or->if exp) env))
         ((let? exp) (eval (let->combination exp) env))
+        ((let*? exp) (eval (let*->nested-lets exp) env))
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
                          (lambda-body exp)
@@ -89,6 +90,18 @@
  (define (let->combination exp)
    (cons (make-lambda (let-vars exp) (let-body exp))
          (let-value exp)))
+
+(define (let*? expr) (tagged-list? expr 'let*))
+(define (let*-body expr) (caddr expr))
+(define (let*-inits expr) (cadr expr))
+(define (let*->nested-lets expr)
+  (let ((inits (let*-inits expr))
+        (body (let*-body expr)))
+    (define (make-lets exprs)
+      (if (null? exprs)
+        body
+        (list 'let (list (car exprs)) (make-lets (cdr exprs)))))
+    (make-lets inits)))
 
 ; list of arguments to which procedure is applied
 (define (list-of-values exps env)
