@@ -203,17 +203,22 @@
 
 (define (expand-clauses clauses)
   (if (null? clauses)
-      'false                          ; no else clause
-      (let ((first (car clauses))
-            (rest (cdr clauses)))
-        (if (cond-else-clause? first)
-            (if (null? rest)
-                (sequence->exp (cond-actions first))
-                (error "ELSE clause isn't last -- COND->IF"
-                       clauses))
-            (make-if (cond-predicate first)
-                     (sequence->exp (cond-actions first))
-                     (expand-clauses rest))))))
+    'false                          ; no else clause
+    (let ((first (car clauses))
+          (rest (cdr clauses)))
+      (if (cond-else-clause? first)
+        (if (null? rest)
+          (sequence->exp (cond-actions first))
+          (error "ELSE clause isn't last -- COND->IF" clauses))
+        (let ((test (cond-predicate first))
+              (recepient (if (eq? (car (cond-actions first)) '=>)
+                           (cadr (cond-actions first))
+                           false)))
+          (make-if test
+                  (if recepient
+                    (list recepient test) ;test-recepient cond
+                    (sequence->exp (cond-actions first))) ;normal cond
+                  (expand-clauses rest)))))))
 
 (define (make-application operator operands)
   (cons operator operands))
