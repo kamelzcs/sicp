@@ -96,3 +96,32 @@ a: undefined;
         (* k (ft ft (- k 1)))))
     9)))
 
+;4.22
+(let ((a (+ 1 5))) (+ a 1))
+
+;4.23
+(lambda (env)
+  ((lambda (env) 
+     (proc1 env) 
+     (proc2 env))
+   env)
+  (proc3 env))
+
+;4.24
+(eval '(define (factorial n)
+  (if (= n 1)
+      1
+      (* (factorial (- n 1)) n))) the-global-environment)
+
+(let ((t0 0) (t1 0))
+  (define (loop i n)
+    (eval '(factorial 1234) the-global-environment)
+    (if (< i n)
+      (loop (+ i 1) n)))
+  (set! t0 (runtime))
+  (loop 0 200)
+  (set! t1 (runtime))
+  (- t1 t0))
+
+;2106789
+;3302853

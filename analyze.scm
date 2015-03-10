@@ -18,6 +18,7 @@
         ((assignment? exp) (analyze-assignment exp))
         ((definition? exp) (analyze-definition exp))
         ((if? exp) (analyze-if exp))
+        ((let? exp) (analyze (let->combination exp)))
         ((lambda? exp) (analyze-lambda exp))
         ((begin? exp) (analyze-sequence (begin-actions exp)))
         ((cond? exp) (analyze (cond->if exp)))
@@ -48,6 +49,15 @@
     (lambda (env)
       (define-variable! var (vproc env) env)
       'ok)))
+
+(define (let? exp) (tagged-list? exp 'let))
+(define let-associations cadr)
+(define (let-vars exp) (map car (let-associations exp)))
+(define (let-value exp) (map cadr (let-associations exp)))
+(define (let-body exp) (cddr exp))
+(define (let->combination exp)
+ (cons (make-lambda (let-vars exp) (let-body exp))
+       (let-value exp)))
 
 (define (analyze-if exp)
   (let ((pproc (analyze (if-predicate exp)))
