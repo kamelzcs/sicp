@@ -24,6 +24,7 @@
         ((definition? exp) (eval-definition exp env))
         ((if? exp) (eval-if exp env))
         ((let? exp) (eval (let->combination exp) env))
+        ((letrec? exp) (eval (letrec->let exp) env))
         ((let*? exp) (eval (let*->nested-lets exp) env))
         ((lambda? exp)
          (make-procedure (lambda-parameters exp)
@@ -88,6 +89,19 @@
  (define (let->combination exp)
    (cons (make-lambda (let-vars exp) (let-body exp))
          (let-value exp)))
+
+(define (letrec? exp) (tagged-list? exp 'letrec))
+(define (letrec->let exp)
+  (let* ((assi (let-associations exp))
+         (rest-of-lambda (let-body exp))
+         (symbols (map car assi))
+         (let-body (map (lambda (s) (list s ''*unassigned*))
+                              symbols))
+         (set-body (map (lambda (s) (list 'set! (car s) (cadr s)))
+                        assi)))
+    (if (null? let-body)
+      exp
+      (append (list 'let let-body) set-body rest-of-lambda))))
 
 (define (let*? expr) (tagged-list? expr 'let*))
 (define (let*-body expr) (caddr expr))
@@ -268,7 +282,7 @@
 ; abstraction.
 
 (define (make-procedure parameters body env)
-  (list 'procedure parameters (scan-out-defines body) env))
+  (list 'procedure parameters (rearrange body) env))
 (define (compound-procedure? p)
   (tagged-list? p 'procedure))
 (define (procedure-parameters p) (cadr p))
@@ -324,6 +338,14 @@
          (cons (car list) (filter predicate (cdr list))))
         (else
           (filter predicate (cdr list)))))
+
+
+(define (rearrange body)
+  (let* ((definitions (filter definition? body))
+         (rest-of-lambda (filter (lambda (x)
+                                   (not (definition? x)))
+                                 body)))
+    (append definitions rest-of-lambda)))
 
 (define (scan-out-defines body)
   (let* ((definitions (filter definition? body))
@@ -382,7 +404,8 @@
         (list '+ +)
         (list '- -)
         (list '* *)
-        (list '/ /)))
+        (list '/ /)
+        (list '= =)))
 
 (define (primitive-procedure-names)
   (map car primitive-procedures))
