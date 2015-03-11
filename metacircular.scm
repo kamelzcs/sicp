@@ -23,6 +23,7 @@
         ((assignment? exp) (eval-assignment exp env))
         ((definition? exp) (eval-definition exp env))
         ((if? exp) (eval-if exp env))
+        ((unless? exp) (eval (unless->if exp) env))
         ((let? exp) (eval (let->combination exp) env))
         ((letrec? exp) (eval (letrec->let exp) env))
         ((let*? exp) (eval (let*->nested-lets exp) env))
@@ -114,6 +115,18 @@
         body
         (list 'let (list (car exprs)) (make-lets (cdr exprs)))))
     (make-lets inits)))
+
+(define (unless? exp) (tagged-list? exp 'unless))
+(define (unless-clauses exp) (cdr exp))
+(define (unless-condition clauses) (car clauses))
+(define (unless-usual-value clauses) (cadr clauses))
+(define (unless-exceptional-value clauses) (caddr clauses))
+(define (unless->if exp)
+  (expand-unless-clauses (unless-clauses exp)))
+(define (expand-unless-clauses clauses)
+  (make-if (unless-condition clauses)
+           (unless-exceptional-value clauses)
+           (unless-usual-value clauses)))
 
 ; list of arguments to which procedure is applied
 (define (list-of-values exps env)
