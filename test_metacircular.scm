@@ -119,7 +119,7 @@ a: undefined;
     (if (< i n)
       (loop (+ i 1) n)))
   (set! t0 (runtime))
-  (loop 0 200)
+  (loop 0 1)
   (set! t1 (runtime))
   (- t1 t0))
 
@@ -134,3 +134,37 @@ a: undefined;
   (unless (= n 1)
     (* n (factorial (- n 1)))
     1))
+
+;4.27
+(define count 0)
+(define (id x)
+  (set! count (+ count 1))
+  x)
+
+;4.28
+(define (g x) (+ x 1))
+(define (f g x) (g x))
+
+;4.29
+(define (square x)
+  (* x x))
+(square (id 10))
+
+(eval '(define (factorial n)
+  (if (= n 1)
+      1
+      (* (factorial (- n 1)) n))) the-global-environment)
+
+(let ((t0 0) (t1 0))
+  (define (loop i n)
+    (eval '(factorial 1234) the-global-environment)
+    (if (< i n)
+      (loop (+ i 1) n)))
+  (set! t0 (runtime))
+  (loop 0 1)
+  (set! t1 (runtime))
+  (- t1 t0))
+
+;9.864471 second
+;0.027408 second
+
