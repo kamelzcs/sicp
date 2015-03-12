@@ -203,3 +203,5 @@ a: undefined;
 (define ones (cons 1 ones))
 (define integers (cons 1 (add-lists ones integers)))
 (list-ref integers 17)
+
+(car '(a b c))
