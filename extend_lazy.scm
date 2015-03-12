@@ -35,17 +35,62 @@
   (cond ((primitive-procedure? procedure)
          (apply-primitive-procedure
           procedure
-          (list-of-arg-values arguments env)))    ; changed
+          (list-of-arg-values arguments env)))
         ((compound-procedure? procedure)
          (eval-sequence
           (procedure-body procedure)
           (extend-environment
            (procedure-parameters procedure)
-           (list-of-delayed-args arguments env)   ; changed
+           (list-of-maybe-delayed-args   ; changed
+             (procedure-parameter-properties procedure)
+             arguments env)
            (procedure-environment procedure))))
         (else
          (error
           "Unknown procedure type -- APPLY" procedure))))
+
+(define (procedure-parameter-properties procedure)
+  (define (make-property remain)
+    (define (property param)
+      (if (pair? param)
+        (cadr param)
+        'normal))
+    (if (null? remain)
+      '()
+      (cons (property (car remain))
+            (make-property (cdr remain)))))
+  (make-property (cadr procedure)))
+
+(define (list-of-maybe-delayed-args props exps env)
+  (if (no-operands? exps)
+    '()
+    (cons (maybe-delay-it (car props)
+                          (first-operand exps) env)
+          (list-of-maybe-delayed-args (cdr props)
+                                      (rest-operands exps)
+                                      env))))
+
+(define (procedure-parameters p) ; changed
+  (define (extract-real-parameters x)
+    (define (extract y)
+      (if (pair? y)
+          (car y)
+          y))
+    (if (null? x)
+        '()
+        (cons (extract (car x))
+              (extract-real-parameters (cdr x)))))
+  (extract-real-parameters (cadr p)))
+
+(define (maybe-delay-it prop exp env)
+  (cond ((eq? prop 'normal)
+         (actual-value exp env))
+        ((eq? prop 'lazy)
+         (list 'simple-thunk exp env))
+        ((eq? prop 'lazy-memo)
+         (list 'thunk exp env))
+        (else
+         (error "Unknown parameter type -- MAYBE-DELAY-IT" prop))))
 
 ;; * procedure arguments
 (define (list-of-arg-values exps env)
@@ -71,10 +116,13 @@
 ;; * representing thunks
 
 (define (force-it obj)
-  (cond ((thunk? obj)
+  (cond ((simple-thunk? obj)
+         (actual-value (thunk-exp obj)
+                       (thunk-env obj)))
+        ((thunk? obj)
          (let ((result (actual-value
-                        (thunk-exp obj)
-                        (thunk-env obj))))
+                         (thunk-exp obj)
+                         (thunk-env obj))))
            (set-car! obj 'evaluated-thunk)
            (set-car! (cdr obj) result)  ; replace exp with its value
            (set-cdr! (cdr obj) '())     ; forget unneeded env
@@ -88,6 +136,9 @@
 
 (define (thunk? obj)
   (tagged-list? obj 'thunk))
+
+(define (simple-thunk? obj)
+  (tagged-list? obj 'simple-thunk))
 
 (define (thunk-exp thunk) (cadr thunk))
 
@@ -234,7 +285,7 @@
 (define (compound-procedure? p)
   (tagged-list? p 'procedure))
 
-(define (procedure-parameters p) (cadr p))
+;(define (procedure-parameters p) (cadr p))
 
 (define (procedure-body p) (caddr p))
 
@@ -302,7 +353,7 @@
       (cond ((null? vars)
              (add-binding-to-frame! var val frame))
             ((eq? var (car vars))
-             (set-car! vals val))
+             (set-car! vars val))
             (else (scan (cdr vars) (cdr vals)))))
     (scan (frame-variables frame)
           (frame-values frame))))
