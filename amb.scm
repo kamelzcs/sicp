@@ -28,6 +28,8 @@
         ((lambda? exp) (analyze-lambda exp))
         ((begin? exp) (analyze-sequence (begin-actions exp)))
         ((cond? exp) (analyze (cond->if exp)))
+        ((and? exp) (analyze (and->if exp)))
+        ((or? exp) (analyze (or->if exp)))
         ((application? exp) (analyze-application exp))
         (else
          (error "Unknown expression type -- ANALYZE" exp))))
@@ -260,6 +262,40 @@
 
 ;; * derived expressions
 
+(define (or? exp) (tagged-list? exp 'or))
+(define (or-clauses exp) (cdr exp))
+(define (or-first-exp exp) (car exp))
+(define (or-rest-exps exp) (cdr exp))
+(define (or->if exp)
+  (expand-or-clauses (or-clauses exp)))
+(define (expand-or-clauses clauses)
+  (if (null? clauses)
+      'false
+      (let ((first (or-first-exp clauses))
+            (rest (or-rest-exps clauses)))
+           (make-if first
+                    first
+                    (expand-or-clauses rest)))))
+
+(define (and? exp) (tagged-list? exp 'and))
+(define (and-clauses exp) (cdr exp))
+(define (and-first-exp exp) (car exp))
+(define (and-rest-exps exp) (cdr exp))
+(define (and->if exp)
+  (expand-and-clauses (and-clauses exp)))
+(define (expand-and-clauses clauses)
+  (define (expand-and-iter clauses result)
+    (if (null? clauses)
+        result
+        (let ((first (and-first-exp clauses))
+              (rest (and-rest-exps clauses)))
+             (make-if first
+                 (expand-and-iter rest first)
+                 'false))))
+  (if (null? clauses)
+      'true
+      (expand-and-iter clauses '())))
+
 (define (cond? exp) (tagged-list? exp 'cond))
 (define (cond-clauses exp) (cdr exp))
 (define (cond-else-clause? clause)
@@ -424,6 +460,8 @@
         (list 'null? null?)
         (list 'not not)
         (list 'list list)
+        (list 'member member)
+        (list 'abs abs)
         (list '= =)
         (list '< <)
         (list '> >)
