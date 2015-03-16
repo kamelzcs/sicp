@@ -461,6 +461,7 @@
         (list 'not not)
         (list 'list list)
         (list 'member member)
+        (list 'memq memq)
         (list 'abs abs)
         (list '= =)
         (list '< <)
