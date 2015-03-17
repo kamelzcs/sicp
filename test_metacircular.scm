@@ -371,3 +371,85 @@ a: undefined;
           (list 'joan joan)
           (list 'kitty kitty)
           (list 'mary mary))))
+
+;4.44
+(define (an-integer-between low high)
+  (require (<= low high))
+  (amb low (an-integer-between (+ low 1) high)))
+
+(define (safe? result)
+  (let ((p (car result)))
+    (define (conflict? q i)
+      (or
+        (= p q)
+        (= p (+ q i))
+        (= p (- q i))))
+    (define (check rest i)
+      (cond
+        ((null? rest) true)
+        ((conflict? (car rest) i) false)
+        (else (check (cdr rest) (+ i 1)))))
+    (check (cdr result) 1)))
+
+(define (queens n)
+  (define (iter result left)
+    (if (= 0 left)
+      result
+      (begin
+        (let ((new (cons (an-integer-between 1 n)
+                         result)))
+          (require (safe? new))
+          (iter new (- left 1))))))
+  (iter '() n))
+
+(queens 8)
+;natual language
+(define nouns '(noun student professor cat class))
+(define verbs '(verb studies lectures eats sleeps))
+(define articles '(article the a))
+
+(define (parse-sentence)
+  (list 'sentence
+         (parse-noun-phrase)
+         (parse-word verbs)))
+
+(define (parse-noun-phrase)
+  (list 'noun-phrase
+        (parse-word articles)
+        (parse-word nouns)))
+
+(define (parse-word word-list)
+  (require (not (null? *unparsed*)))
+  (require (memq (car *unparsed*) (cdr word-list)))
+  (let ((found-word (car *unparsed*)))
+    (set! *unparsed* (cdr *unparsed*))
+    (list (car word-list) found-word)))
+
+(define *unparsed* '())
+(define (parse input)
+  (set! *unparsed* input)
+  (let ((sent (parse-sentence)))
+    (require (null? *unparsed*))
+    sent))
+
+(parse '(the cat eats))
+
+;4.52
+(if-fail (let ((x (an-element-of '(1 3 5))))
+           (require (even? x))
+           x)
+         'all-odd)
+
+;4.53
+(define (prime-sum-pair list1 list2)
+  (let ((a (an-element-of list1))
+        (b (an-element-of list2)))
+    (require (prime? (+ a b)))
+    (list a b)))
+
+(let ((pairs '()))
+  (if-fail (let ((p (prime-sum-pair '(1 3 5 8) '(20 35 110))))
+             (permanent-set! pairs (cons p pairs))
+             (amb))
+           pairs))
+

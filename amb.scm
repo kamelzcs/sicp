@@ -22,8 +22,10 @@
         ((quoted? exp) (analyze-quoted exp))
         ((variable? exp) (analyze-variable exp))
         ((assignment? exp) (analyze-assignment exp))
+        ((permanent-set? exp) (analyze-permanent-set exp))
         ((definition? exp) (analyze-definition exp))
         ((if? exp) (analyze-if exp))
+        ((if-fail? exp) (analyze-if-fail exp))
         ((let? exp) (analyze (let->combination exp)))
         ((lambda? exp) (analyze-lambda exp))
         ((begin? exp) (analyze-sequence (begin-actions exp)))
@@ -76,6 +78,16 @@
                    (aproc env succeed fail2)))
              ;; failure continuation for evaluating the predicate
              fail))))
+
+(define (analyze-if-fail exp)
+   (let ((first (analyze (cadr exp)))
+         (second (analyze (caddr exp))))
+     (lambda (env succeed fail)
+       (first env
+              (lambda (value fail2)
+                (succeed value fail2))
+              (lambda ()
+                (second env succeed fail))))))
 
 (define (analyze-sequence exps)
   (define (sequentially a b)
@@ -211,6 +223,17 @@
 (define (assignment-variable exp) (cadr exp))
 (define (assignment-value exp) (caddr exp))
 
+(define (permanent-set? expr) (tagged-list? expr 'permanent-set!))
+(define (analyze-permanent-set exp)
+  (let ((var (assignment-variable exp))
+        (vproc (analyze (assignment-value exp))))
+    (lambda (env succeed fail)
+      (vproc env
+             (lambda (val fail2)
+               (set-variable-value! var val env)
+               (succeed 'ok  fail2))
+             fail))))
+
 (define (definition? exp)
   (tagged-list? exp 'define))
 (define (definition-variable exp)
@@ -229,6 +252,8 @@
 
 (define (make-lambda parameters body)
   (cons 'lambda (cons parameters body)))
+
+(define (if-fail? exp) (tagged-list? exp 'if-fail))
 
 (define (if? exp) (tagged-list? exp 'if))
 (define (if-predicate exp) (cadr exp))
@@ -463,6 +488,7 @@
         (list 'member member)
         (list 'memq memq)
         (list 'abs abs)
+        (list 'even? even?)
         (list '= =)
         (list '< <)
         (list '> >)
